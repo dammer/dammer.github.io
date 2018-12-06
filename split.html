@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Split expenses</title>
+    <script>
+      // dev mode
+      if(window.location.protocol == 'file:') {
+        document.write("<link rel=\"stylesheet\" href=\"css/bulma.css\">");
+        document.write("<script defer src=\"js/all.js\"><\/script>");
+        document.write("<script src=\"js/vue.js\"><\/script>");
+      } else {
+        document.write("<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css\">");
+        document.write("<script defer src=\"https://use.fontawesome.com/releases/v5.3.1/js/all.js\"><\/script>");
+        document.write("<script src=\"https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.min.js\"><\/script>");
+      }
+    </script>
+    <style>
+      .title .icon {
+        display: inline;
+      }
+      .table td, .table th {
+        vertical-align: middle;
+      }
+      .person-total {
+        border-bottom: 1px solid #dbdbdb;
+      }
+      .table td label.checkbox.button {
+        padding-left: 0px;
+        padding-right: 0px;
+      }
+      .table td label.checkbox.button .icon {
+        margin-right: 0px;
+        margin-left: 0px;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="app" class="">
+      <div class="box">
+
+        <h1 class="title">
+          <a :href="clean_url">
+            <span class="icon has-text-info">
+              <i class="fas fa-calculator"></i>
+            </span>
+          </a>
+          Split Expenses
+        </h1>
+        <div class="subheader">
+          Share <a :href="share_url">this link </a> with another member so that he can add his expenses or see the result of the calculation.
+        </div>
+      </div>
+      <div class="column">
+        <table class="table is-bordered is-fullwidth is-narrow">
+          <thead>
+            <tr>
+              <th>Expense</th>
+              <th class="has-text-centered">Amount</th>
+              <th v-for="person in people" :key='person.id'>
+                <div class="field has-addons">
+                  <div class="control">
+                    <a class="button is-white" v-on:click="removePerson(person.id)">
+                      <span class="icon has-text-danger">
+                        <i class="fas fa-user-times"></i>
+                      </span>
+                    </a>
+                  </div>
+                  <p class="control">
+                    <input class="input is-static"
+                           type="text"
+                           v-model="person.name"
+                           @keyup.enter="$event.target.blur()"
+                           >
+                  </p>
+                </div>
+              </th>
+              <th>
+                <div class="field has-addons">
+                  <div class="control">
+                    <input class="input"
+                           type="text"
+                           placeholder="Add new person"
+                           @keyup.enter="(newPersonName !== '') && addNewPerson()"
+                           v-model.trim='newPersonName'
+                           >
+                  </div>
+                  <div class="control">
+                    <a class="button is-info"
+                       :disabled="newPersonName === ''"
+                       @click="(newPersonName !== '') && addNewPerson()"
+                       >
+                       <span class="icon">
+                         <i class="fas fa-user-plus"></i>
+                       </span>
+                    </a>
+                  </div>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="expense in expenses">
+              <td>
+                <div class="field has-addons">
+                  <div class="control">
+                    <a class="button is-white" v-on:click="removeExpense(expense.id)">
+                      <span class="icon has-text-danger">
+                        <i class="fas fa-trash-alt"></i>
+                      </span>
+                    </a>
+                  </div>
+                  <p class="control">
+                    <input class="input is-static"
+                           type="text"
+                           v-model="expense.name"
+                           @keyup.enter="$event.target.blur()"
+                           >
+                  </p>
+                </div>
+              </td>
+              <td class="has-text-right has-text-danger">
+                <div class="field">
+                  <p class="control"
+                     v-show="expIdAmountEdit !== expense.id"
+                     @click="editExpAmount(expense)"
+                     >
+                     <input class="input has-text-right has-text-danger is-static" :value="formatter.format(expense.amount)" readonly>
+                  </p>
+                  <p class="control" v-show="expIdAmountEdit === expense.id">
+                    <input class="input has-text-right has-text-danger is-static"
+                           :id="'exp_inp_' + expense.id"
+                           v-model.number="expense.amount"
+                           @blur="expIdAmountEdit = false"
+                           @keyup.enter="$event.target.blur()"
+                           >
+                  </p>
+                </div>
+              </td>
+              <td v-for="person in people" :key='person.id' class="has-text-right">
+                <div class="field has-addons">
+                  <p class="control">
+                    <label class="checkbox button">
+                      <input type="checkbox" :value="person.id" v-model="expense.pIds" v-show="false">
+                      <span class="icon is-small" :class="personInCheckedIds(expense, person.id) ? 'has-text-success' : 'has-text-grey-lighter'">
+                        <i class="fas fa-check"></i>
+                      </span>
+                    </label>
+                  </p>
+                  <p class="control">
+                    <a class="button"
+                       :class="{'is-static': !personInCheckedIds(expense, person.id), 'has-text-grey': isExpenseProp(expense, person.id)}"
+                       @click="equalsButtonClick(expense, person.id)"
+                       >
+                       <template v-if="!isExpenseProp(expense, person.id)">
+                         <span class="icon is-small" >
+                           <i class="fas fa-not-equal"></i>
+                         </span>
+                       </template>
+                       <template v-else>
+                         <span class="icon is-small">
+                           <i class="fas fa-equals"></i>
+                         </span>
+                       </template>
+                    </a>
+                  </p>
+                  <div v-show="!amountPersonExpIsEdit(expense.id, person.id)">
+                    <p class="control">
+                      <input class="input has-text-right is-static"
+                             :class="{'has-text-danger': isExpenseProp(expense, person.id)}"
+                             :value="formatter.format(personAmountInExpense(expense, person.id))"
+                             @click="personInCheckedIds(expense, person.id) ? editExpPersonAmount(expense, person.id) : ''"
+                             readonly
+                             >
+                    </p>
+                  </div>
+                  <div v-show="amountPersonExpIsEdit(expense.id, person.id)">
+                    <p class="control">
+                      <input class="input has-text-right is-static"
+                             :class="{'has-text-danger': isExpenseProp(expense, person.id)}"
+                             :id="'exp_' + expense.id + '_pers_' + person.id +'_inp'"
+                             :value="personAmountInExpense(expense, person.id)"
+                             @input="$set(expense.notEqals, person.id, Math.min($event.target.value, expense.amount))"
+                             @blur="aE = false; aP = false"
+                             @keyup.enter="$event.target.blur()"
+                             >
+                    </p>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="select">
+                  <select v-model="expense.person_id">
+                    <option disabled selected value="">Select one of person</option>
+                    <option v-for="person in people" :key='person.id' :value="person.id">
+                    {{ person.name }}
+                    </option>
+                  </select>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th>Totals</th>
+              <th class="has-text-right has-text-danger">{{ formatter.format(expencesTotal) }}</th>
+              <th v-for="person in people" class="has-text-right">
+                <div class="has-text-success">
+                  {{ formatter.format(personTotalSpent(person.id)) }}
+                </div>
+                <div class="person-total has-text-danger">
+                  {{ formatter.format(personTotalAmount(person.id)) }}
+                </div>
+                <div :class="personTotalBalance(person.id) < 0 ? 'has-text-danger' : 'has-text-success'">
+                  {{ formatter.format(personTotalBalance(person.id)) }}
+                </div>
+              </th>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div class="column">
+        <div class="level">
+          <div class="level-item">
+            <div class="field has-addons">
+              <p class="control">
+              <input class="input"
+                     type="text"
+                     placeholder="Expense description"
+                     v-model.trim='newExpenseName'
+                     >
+              </p>
+              <p class="control">
+              <input class="input has-text-right"
+                     type="text"
+                     placeholder="Amount"
+                     v-model.number='newExpenseAmount'
+                     >
+              </p>
+              <p class="control">
+              <div class="select">
+                <select v-model="newExpPerson">
+                  <option disabled selected value="" v-if="people.length === 0 || people.length > 1 ">
+                  {{ people.length === 0 ? "Please add new person" : "Select one of person" }}
+                  </option>
+                  <option v-for="person in people" :key='person.id' :value="person.id">
+                  {{ person.name }}
+                  </option>
+                </select>
+              </div>
+              </p>
+              <p class="control">
+              <a class="button is-info"
+                 :disabled="!isNewExpenseValid"
+                 @click="isNewExpenseValid && addNewExpense()"
+                 >
+                 <span class="icon">
+                   <i class="fas fa-file-invoice-dollar"></i>
+                 </span>
+                 <span>Add expense</span>
+              </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <footer class="footer">
+        <div class="content has-text-centered">
+          <p>
+          <strong>Split Expenses</strong> by <a href="https://dammer.gihub.io">Damir Sharipov</a>. The source code is licensed
+          <a href="http://opensource.org/licenses/mit-license.php">MIT</a>. The website content
+          is licensed <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY NC SA 4.0</a>.
+          </p>
+          <p>
+          Many thank's to <a href="https://vuejs.org/" target="_blank">Vue</a> and
+          <a href="https://bulma.io/" target="_blank">Bulma</a> for inspiration
+          </p>
+        </div>
+      </footer>
+    </main>
+    <script>
+      // LZW-compress a string
+      function lzw_encode(s) {
+        var dict = {};
+        var data = (s + "").split("");
+        var out = [];
+        var currChar;
+        var phrase = data[0];
+        var code = 256;
+        for (var i=1; i<data.length; i++) {
+          currChar=data[i];
+          if (dict[phrase + currChar] != null) {
+            phrase += currChar;
+          }
+          else {
+            out.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
+            dict[phrase + currChar] = code;
+            code++;
+            phrase=currChar;
+          }
+        }
+        out.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
+        for (var i=0; i<out.length; i++) {
+          out[i] = String.fromCharCode(out[i]);
+        }
+        return out.join("");
+      }
+      // Decompress an LZW-encoded string
+      function lzw_decode(s) {
+        var dict = {};
+        var data = (s + "").split("");
+        var currChar = data[0];
+        var oldPhrase = currChar;
+        var out = [currChar];
+        var code = 256;
+        var phrase;
+        for (var i=1; i<data.length; i++) {
+          var currCode = data[i].charCodeAt(0);
+          if (currCode < 256) {
+            phrase = data[i];
+          }
+          else {
+            phrase = dict[currCode] ? dict[currCode] : (oldPhrase + currChar);
+          }
+          out.push(phrase);
+          currChar = phrase.charAt(0);
+          dict[code] = oldPhrase + currChar;
+          code++;
+          oldPhrase = phrase;
+        }
+        return out.join("");
+      }
+    </script>
+
+    <script>
+      var app = new Vue({
+        el: '#app',
+        data: {
+          people: [],
+          newPersonName: '',
+          nextPersonId: 1,
+
+          expenses: [],
+          nextExpenseId: 1,
+
+          newExpenseName: '',
+          newExpenseAmount: '',
+          newExpPerson: '',
+          expIdAmountEdit: false,
+          aE: false,
+          aP: false
+        },
+        mounted: function() {
+          tag = (new URL(document.URL)).searchParams.get('tag')
+          if (tag !== null) { this.import_data(tag) }
+        },
+        computed: {
+          expencesTotal: function () {
+            return this.expenses.reduce((acc, v) => acc + v.amount, 0)
+          },
+          isNewExpenseValid: function () {
+            return this.newExpenseName !== '' &&
+              this.newExpenseAmount > 0 &&
+              this.newExpPerson !== ''
+          },
+          formatter: function() {
+            return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 })
+          },
+
+          export_data: function () {
+            exp_data = {}
+            exp_data['people'] = this.people
+            exp_data['nextPersonId'] = this.nextPersonId
+            exp_data['expenses'] = this.expenses
+            exp_data['nextExpenseId'] = this.nextExpenseId
+            return encodeURIComponent(btoa(unescape(encodeURIComponent(lzw_encode(escape(JSON.stringify(exp_data)))))))
+          },
+          clean_url: function () {
+            return document.location.toString().split('?')[0]
+          },
+          share_url: function () {
+            return this.clean_url + "?tag=" + this.export_data
+          }
+        },
+        methods: {
+          addNewPerson: function () {
+            person_id = this.nextPersonId
+            this.people.push({
+              id: this.nextPersonId++,
+              name: this.newPersonName
+            })
+            this.newPersonName = ''
+            this.expenses.forEach(expence => expence.pIds.push(person_id))
+            this.newExpPerson = (this.people.length === 1 ? this.people[0].id : '')
+          },
+          personFindById: function (person_id) {
+            return this.people.find(person => person.id === person_id)
+          },
+          removePerson: function (person_id) {
+            person = this.personFindById(person_id)
+            this.people.splice(this.people.indexOf(person), 1)
+            this.expenses.filter(expense => expense.pIds.indexOf(person_id) > -1).forEach(expense => expense.pIds.splice(expense.pIds.indexOf(person_id), 1))
+            this.expenses.filter(expense => expense.person_id === person_id ).forEach(expence => expence.person_id = '')
+            this.newExpPerson = (this.people.length === 1 ? this.people[0].id : '')
+          },
+          addNewExpense: function () {
+            expense = {
+              id: this.nextExpenseId++,
+              name: this.newExpenseName,
+              amount: this.newExpenseAmount || 0,
+              person_id: this.newExpPerson || this.people[0].id,
+              pIds: this.people.map(p => p.id),
+              notEqals: {}
+            }
+            this.expenses.push(expense)
+            this.newExpenseName = ''
+            this.newExpenseAmount = ''
+            this.newExpPerson = (this.people.length === 1 ? this.people[0].id : '')
+          },
+          expenseFindById: function (expense_id) {
+            return this.expenses.find(expense => expense.id === expense_id)
+          },
+          removeExpense: function (expense_id) {
+            expense = this.expenseFindById(expense_id)
+            this.expenses.splice(this.expenses.indexOf(expense), 1)
+
+          },
+          editExpAmount: function (expense) {
+            this.expIdAmountEdit = expense.id;
+            this.$nextTick(function () { document.getElementById('exp_inp_' + expense.id).focus() })
+          },
+          equalsButtonClick: function (expense, person_id) {
+            if (this.isExpenseProp(expense, person_id)) {
+              this.editExpPersonAmount(expense, person_id)
+            } else {
+              this.$delete(expense.notEqals, person_id)
+            }
+          },
+          amountPersonExpIsEdit: function (expense_id, person_id) {
+            return this.aE === expense_id && this.aP === person_id
+          },
+          editExpPersonAmount: function (expense, person_id) {
+            this.$set(expense.notEqals, person_id, this.personAmountInExpense(expense, person_id))
+            this.aE = expense.id
+            this.aP = person_id
+            this.$nextTick(function () { document.getElementById('exp_' + expense.id + '_pers_' + person_id +'_inp').focus() })
+          },
+          personInCheckedIds: function (expense, person_id) {
+            return expense.pIds.indexOf(person_id) !== -1
+          },
+          isExpenseProp: function (expense, person_id) {
+            return expense.notEqals[person_id] === undefined
+          },
+          personAmountInExpense: function (expense, person_id) {
+            if (!this.personInCheckedIds(expense, person_id)) return 0
+            if (this.isExpenseProp(expense, person_id)) {
+              checkedNotPropKeys = Object.keys(expense.notEqals).filter(x => expense.pIds.includes(parseInt(x)))
+              return (expense.amount - checkedNotPropKeys.map(k => expense.notEqals[k]).reduce((acc, v) => acc + parseFloat(v), 0)) /
+                (expense.pIds.length - checkedNotPropKeys.length)
+            }
+            return expense.notEqals[person_id]
+          },
+          personTotalSpent: function (person_id) {
+            return this.expenses.filter(expense => expense.person_id === person_id ).reduce((acc, v) => acc + v.amount, 0)
+          },
+          personTotalAmount: function (person_id) {
+            return this.expenses.map(expense => this.personAmountInExpense(expense, person_id)).reduce((acc, v) => acc + parseFloat(v), 0)
+          },
+          personTotalBalance: function (person_id) {
+            return this.personTotalSpent(person_id) - this.personTotalAmount(person_id)
+          },
+          import_data: function(s) {
+            exp_data = JSON.parse(unescape(lzw_decode(decodeURIComponent(escape(atob(decodeURIComponent(s)))))))
+            this.$data.people        = exp_data['people']
+            this.$data.nextPersonId  = exp_data['nextPersonId']
+            this.$data.expenses      = exp_data['expenses']
+            this.$data.nextExpenseId = exp_data['nextExpenseId']
+          }
+        }
+      })
+    </script>
+  </body>
+</html>
