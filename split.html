@@ -17,8 +17,8 @@
       }
     </script>
     <style>
-      .title .icon {
-        display: inline;
+      .navbar-brand .icon {
+        vertical-align: baseline;
       }
       .table td, .table th {
         vertical-align: middle;
@@ -36,23 +36,37 @@
       }
     </style>
   </head>
-  <body>
+  <body >
     <main id="app" class="">
-      <div class="box">
-
-        <h1 class="title">
-          <a :href="clean_url">
-            <span class="icon has-text-info">
-              <i class="fas fa-calculator"></i>
-            </span>
-          </a>
-          Split Expenses
-        </h1>
-        <div class="subheader">
-          Share <a :href="share_url">this link </a> with another member so that he can add his expenses or see the result of the calculation.
+      <nav id="navbar" class="navbar has-shadow">
+        <div class="navbar-brand">
+          <div class="navbar-item">
+            <div class="is-size-3">
+              <a class="" :href="clean_url">
+                <span class="icon has-text-info">
+                  <i class="fas fa-calculator"></i>
+                </span>
+              </a>
+              <span>Split Expenses</span>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="column">
+        <div class="navbar-menu">
+          <div class="navbar-start">
+            <div class="navbar-item">
+            </div>
+          </div>
+          <div class="navbar-end">
+            <div class="navbar-item">
+              <p class="box">
+              Share <a :href="share_url">this link </a> with another member so that he can add his expenses or see the result of the calculation.
+              </p>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div class="column is-paddingless">
         <table class="table is-bordered is-fullwidth is-narrow">
           <thead>
             <tr>
@@ -225,44 +239,46 @@
       <div class="column">
         <div class="level">
           <div class="level-item">
-            <div class="field has-addons">
-              <p class="control">
-              <input class="input"
-                     type="text"
-                     placeholder="Expense description"
-                     v-model.trim='newExpenseName'
+            <div class="box">
+              <div class="field has-addons">
+                <p class="control is-expanded">
+                  <input class="input"
+                         type="text"
+                         placeholder="Expense description"
+                         v-model.trim='newExpenseName'
+                         >
+                  </p>
+                <p class="control">
+                  <input class="input has-text-right"
+                         type="text"
+                         placeholder="Amount"
+                         v-model.number='newExpenseAmount'
+                         >
+                  </p>
+                <p class="control">
+                  <div class="select">
+                    <select v-model="newExpPerson">
+                      <option disabled selected value="" v-if="people.length === 0 || people.length > 1 ">
+                      {{ people.length === 0 ? "Please add new person" : "Select one of person" }}
+                      </option>
+                      <option v-for="person in people" :key='person.id' :value="person.id">
+                      {{ person.name }}
+                      </option>
+                    </select>
+                  </div>
+                </p>
+                <p class="control">
+                  <a class="button is-info"
+                     :disabled="!isNewExpenseValid"
+                     @click="isNewExpenseValid && addNewExpense()"
                      >
-              </p>
-              <p class="control">
-              <input class="input has-text-right"
-                     type="text"
-                     placeholder="Amount"
-                     v-model.number='newExpenseAmount'
-                     >
-              </p>
-              <p class="control">
-              <div class="select">
-                <select v-model="newExpPerson">
-                  <option disabled selected value="" v-if="people.length === 0 || people.length > 1 ">
-                  {{ people.length === 0 ? "Please add new person" : "Select one of person" }}
-                  </option>
-                  <option v-for="person in people" :key='person.id' :value="person.id">
-                  {{ person.name }}
-                  </option>
-                </select>
+                     <span class="icon">
+                       <i class="fas fa-file-invoice-dollar"></i>
+                     </span>
+                     <span>Add expense</span>
+                  </a>
+                </p>
               </div>
-              </p>
-              <p class="control">
-              <a class="button is-info"
-                 :disabled="!isNewExpenseValid"
-                 @click="isNewExpenseValid && addNewExpense()"
-                 >
-                 <span class="icon">
-                   <i class="fas fa-file-invoice-dollar"></i>
-                 </span>
-                 <span>Add expense</span>
-              </a>
-              </p>
             </div>
           </div>
         </div>
@@ -276,12 +292,14 @@
           </p>
           <p>
           Many thank's to <a href="https://vuejs.org/" target="_blank">Vue</a> and
-          <a href="https://bulma.io/" target="_blank">Bulma</a> for inspiration
+          <a href="https://bulma.io/" target="_blank">Bulma</a> for inspiration.
           </p>
         </div>
       </footer>
     </main>
+
     <script>
+      // https://gist.github.com/revolunet/843889
       // LZW-compress a string
       function lzw_encode(s) {
         var dict = {};
@@ -308,6 +326,7 @@
         }
         return out.join("");
       }
+
       // Decompress an LZW-encoded string
       function lzw_decode(s) {
         var dict = {};
@@ -336,6 +355,7 @@
     </script>
 
     <script>
+      // Vue app
       var app = new Vue({
         el: '#app',
         data: {
@@ -354,8 +374,12 @@
           aP: false
         },
         mounted: function() {
-          tag = (new URL(document.URL)).searchParams.get('tag')
-          if (tag !== null) { this.import_data(tag) }
+          url = new URL(document.URL)
+          tag = url.searchParams.get("tag")
+          h = url.searchParams.get("h")
+          if (tag !== null && this.get_hash(encodeURIComponent(tag)) == h) {
+            this.import_data(this.decode_exp_data(tag))
+          }
         },
         computed: {
           expencesTotal: function () {
@@ -369,20 +393,20 @@
           formatter: function() {
             return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 })
           },
-
           export_data: function () {
             exp_data = {}
             exp_data['people'] = this.people
             exp_data['nextPersonId'] = this.nextPersonId
             exp_data['expenses'] = this.expenses
             exp_data['nextExpenseId'] = this.nextExpenseId
-            return encodeURIComponent(btoa(unescape(encodeURIComponent(lzw_encode(escape(JSON.stringify(exp_data)))))))
+            return exp_data
           },
           clean_url: function () {
             return document.location.toString().split('?')[0]
           },
           share_url: function () {
-            return this.clean_url + "?tag=" + this.export_data
+            tag = this.encode_export_data(this.export_data)
+            return this.clean_url + "?tag=" + tag + "&h=" + this.get_hash(tag)
           }
         },
         methods: {
@@ -472,12 +496,20 @@
           personTotalBalance: function (person_id) {
             return this.personTotalSpent(person_id) - this.personTotalAmount(person_id)
           },
-          import_data: function(s) {
-            exp_data = JSON.parse(unescape(lzw_decode(decodeURIComponent(escape(atob(decodeURIComponent(s)))))))
+          encode_export_data: function (exp_data) {
+            return encodeURIComponent(btoa(unescape(encodeURIComponent(lzw_encode(escape(JSON.stringify(exp_data)))))))
+          },
+          decode_exp_data: function (exp_data) {
+            return JSON.parse(unescape(lzw_decode(decodeURIComponent(escape(atob(decodeURIComponent(exp_data)))))))
+          },
+          import_data: function(exp_data) {
             this.$data.people        = exp_data['people']
             this.$data.nextPersonId  = exp_data['nextPersonId']
             this.$data.expenses      = exp_data['expenses']
             this.$data.nextExpenseId = exp_data['nextExpenseId']
+          },
+          get_hash: function(str) {
+            return ((("" + str).split('').map(v=>v.charCodeAt(0)).reduce((a,v)=>a+((a<<7)+(a<<3))^v) + + 2147483647) + 1).toString(16);
           }
         }
       })
