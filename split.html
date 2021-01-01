@@ -11,7 +11,7 @@
         document.write("<script defer src=\"js/all.js\"><\/script>");
         document.write("<script src=\"js/vue.js\"><\/script>");
       } else {
-        document.write("<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css\">");
+        document.write("<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css\">");
         document.write("<script defer src=\"https://use.fontawesome.com/releases/v5.3.1/js/all.js\"><\/script>");
         document.write("<script src=\"https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.min.js\"><\/script>");
       }
@@ -50,16 +50,15 @@
               <span>Split Expenses</span>
             </div>
           </div>
-          <div class="navbar-item">
-            <p class="box">
-            Share <a :href="share_url">this link </a> with another member so that he can add his expenses or see the result of the calculation.
-            </p>
-          </div>
         </div>
       </nav>
 
-      <div class="column is-paddingless">
-        <div class="table-container"
+      <p class="help m-2">
+      Share <a :href="share_url">this link </a> with another member so that he can add his expenses or see the result of the calculation.
+      </p>
+
+      <div class="block">
+        <div class="table-container">
         <table class="table is-bordered is-fullwidth is-narrow">
           <thead>
             <tr>
@@ -227,54 +226,54 @@
             </tr>
           </tfoot>
         </table>
-      </div>
+        </div>
       </div>
 
-      <div class="column">
-        <div class="level">
-          <div class="level-item">
-            <div class="box">
-              <div class="field has-addons">
-                <p class="control is-expanded">
-                  <input class="input"
-                         type="text"
-                         placeholder="Expense description"
-                         v-model.trim='newExpenseName'
-                         >
-                  </p>
-                <p class="control">
-                  <input class="input has-text-right"
-                         type="text"
-                         placeholder="Amount"
-                         v-model.number='newExpenseAmount'
-                         >
-                  </p>
-                <p class="control">
-                  <div class="select">
-                    <select v-model="newExpPerson">
-                      <option disabled selected value="" v-if="people.length === 0 || people.length > 1 ">
-                      {{ people.length === 0 ? "Please add new person" : "Select one of person" }}
-                      </option>
-                      <option v-for="person in people" :key='person.id' :value="person.id">
-                      {{ person.name }}
-                      </option>
-                    </select>
-                  </div>
-                </p>
-                <p class="control">
-                  <a class="button is-info"
-                     :disabled="!isNewExpenseValid"
-                     @click="isNewExpenseValid && addNewExpense()"
-                     >
-                     <span class="icon">
-                       <i class="fas fa-file-invoice-dollar"></i>
-                     </span>
-                     <span>Add expense</span>
-                  </a>
-                </p>
-              </div>
+      <div class="columns">
+        <div class="field m-1">
+          <p class="control">
+          <input class="input"
+                 type="text"
+                 placeholder="Expense description"
+                 v-model.trim='newExpenseName'
+                 >
+          </p>
+        </div>
+        <div class="field m-1">
+          <p class="control">
+          <input class="input has-text-right"
+                 type="text"
+                 placeholder="Amount"
+                 v-model.number='newExpenseAmount'
+                 >
+          </p>
+        </div>
+        <div class="field m-1">
+          <div class="control">
+            <div class="select">
+              <select v-model="newExpPerson">
+                <option disabled selected value="" v-if="people.length === 0 || people.length > 1 ">
+                {{ people.length === 0 ? "Please add new person" : "Select one of person" }}
+                </option>
+                <option v-for="person in people" :key='person.id' :value="person.id">
+                {{ person.name }}
+                </option>
+              </select>
             </div>
           </div>
+        </div>
+        <div class="field m-1">
+          <p class="control">
+          <a class="button is-info"
+             :disabled="!isNewExpenseValid"
+             @click="isNewExpenseValid && addNewExpense()"
+             >
+             <span class="icon">
+               <i class="fas fa-file-invoice-dollar"></i>
+             </span>
+             <span>Add expense</span>
+          </a>
+          </p>
         </div>
       </div>
       <footer class="footer">
